@@ -81,6 +81,15 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Keep Alive Route
+app.get("/keep-alive", (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Server is alive",
+    time: new Date(),
+  });
+});
+
 // ==================== START SERVER ====================
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
