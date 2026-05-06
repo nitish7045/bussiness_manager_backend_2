@@ -695,73 +695,258 @@ router.post("/register", async (req, res) => {
     });
   }
 });
-
-// LOGIN route - Updated to send notification for every login
+// LOGIN route - DEBUG VERSION
 router.post("/login", async (req, res) => {
+
   try {
+
+    console.log("========== LOGIN START ==========");
+
     const { email, password } = req.body;
 
-    // Check if account is locked
+    console.log("📧 Email:", email);
+
+    // ================= ACCOUNT LOCK CHECK =================
+    console.log("🔍 Checking account lock...");
+
     const attemptData = loginAttempts.get(email);
-    if (attemptData && attemptData.lockUntil && attemptData.lockUntil > Date.now()) {
-      const minutesLeft = Math.ceil((attemptData.lockUntil - Date.now()) / 60000);
-      return res.status(403).json({ msg: `Account locked. Try again after ${minutesLeft} minutes.` });
+
+    console.log("Attempt Data:", attemptData);
+
+    if (
+      attemptData &&
+      attemptData.lockUntil &&
+      attemptData.lockUntil > Date.now()
+    ) {
+
+      console.log("❌ Account Locked");
+
+      const minutesLeft = Math.ceil(
+        (attemptData.lockUntil - Date.now()) / 60000
+      );
+
+      return res.status(403).json({
+        msg: `Account locked. Try again after ${minutesLeft} minutes.`,
+      });
+
     }
+
+    console.log("✅ Account not locked");
+
+    // ================= FIND USER =================
+    console.log("🔍 Finding user in database...");
 
     const user = await User.findOne({ email });
+
+    console.log("✅ User query completed");
+
     if (!user) {
+
+      console.log("❌ User not found");
+
       const newAttempts = updateLoginAttempts(email, false);
-      await sendWrongPasswordAlert(email, newAttempts.count, req);
-      return res.status(400).json({ msg: "Invalid email or password" });
+
+      console.log("Updated Attempts:", newAttempts);
+
+      await sendWrongPasswordAlert(
+        email,
+        newAttempts.count,
+        req
+      );
+
+      console.log("📧 Wrong password email sent");
+
+      return res.status(400).json({
+        msg: "Invalid email or password",
+      });
+
     }
 
-    const isMatch = await bcrypt.compare(password, user.password);
+    console.log("✅ User Found");
+
+    // ================= PASSWORD CHECK =================
+    console.log("🔍 Comparing password...");
+
+    const isMatch = await bcrypt.compare(
+      password,
+      user.password
+    );
+
+    console.log("✅ Password compare completed");
+
     if (!isMatch) {
+
+      console.log("❌ Password Incorrect");
+
       const newAttempts = updateLoginAttempts(email, false);
-      const remainingAttempts = 5 - newAttempts.count;
-      await sendWrongPasswordAlert(email, newAttempts.count, req);
+
+      console.log("Updated Attempts:", newAttempts);
+
+      const remainingAttempts =
+        5 - newAttempts.count;
+
+      await sendWrongPasswordAlert(
+        email,
+        newAttempts.count,
+        req
+      );
+
+      console.log("📧 Wrong password alert sent");
 
       if (newAttempts.count >= 5) {
-        await sendExcessiveAttemptsAlert(email, newAttempts.count, req);
-        return res.status(403).json({ msg: "Too many failed attempts. Account locked for 15 minutes." });
+
+        console.log("❌ Too many attempts");
+
+        await sendExcessiveAttemptsAlert(
+          email,
+          newAttempts.count,
+          req
+        );
+
+        console.log("📧 Excessive attempt email sent");
+
+        return res.status(403).json({
+          msg:
+            "Too many failed attempts. Account locked for 15 minutes.",
+        });
+
       }
-      return res.status(400).json({ msg: `Invalid password. ${remainingAttempts} attempts remaining.` });
+
+      return res.status(400).json({
+        msg: `Invalid password. ${remainingAttempts} attempts remaining.`,
+      });
+
     }
 
-    // Successful login
+    console.log("✅ Password Correct");
+
+    // ================= RESET LOGIN ATTEMPTS =================
+    console.log("🔄 Resetting login attempts...");
+
     updateLoginAttempts(email, true);
 
-    // FIXED: Send login notification for EVERY successful login
-    // Check if this is a new location (just for info, but still send email)
-    const newLocationDetected = isNewLocation(user, req);
+    console.log("✅ Login attempts reset");
 
-    // ALWAYS send login notification (not just for new locations)
-    await sendLoginNotification(email, req, newLocationDetected);
+    // ================= LOCATION CHECK =================
+    console.log("🌍 Checking location...");
 
-    // Save login history
-    let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip;
-    if (ip && ip.startsWith('::ffff:')) ip = ip.substring(7);
+    const newLocationDetected =
+      isNewLocation(user, req);
+
+    console.log(
+      "New Location Detected:",
+      newLocationDetected
+    );
+
+    // ================= SEND LOGIN EMAIL =================
+    console.log("📧 Sending login notification email...");
+
+    await sendLoginNotification(
+      email,
+      req,
+      newLocationDetected
+    );
+
+    console.log("✅ Login notification email sent");
+
+    // ================= GET IP =================
+    console.log("🌐 Getting IP...");
+
+    let ip =
+      req.headers["x-forwarded-for"] ||
+      req.connection.remoteAddress ||
+      req.socket.remoteAddress ||
+      req.ip;
+
+    if (ip && ip.startsWith("::ffff:")) {
+      ip = ip.substring(7);
+    }
+
+    console.log("IP Address:", ip);
+
+    // ================= GET LOCATION =================
+    console.log("🌍 Getting location from IP...");
+
     const location = await getLocationFromIP(req);
 
+    console.log("Location:", location);
+
+    // ================= SAVE LOGIN HISTORY =================
+    console.log("💾 Saving login history...");
+
     user.lastLogin = new Date();
-    user.loginHistory = user.loginHistory || [];
+
+    user.loginHistory =
+      user.loginHistory || [];
+
     user.loginHistory.unshift({
       timestamp: new Date(),
       ip: ip,
-      userAgent: req.headers['user-agent'],
-      location: `${location.city}, ${location.country}`
+      userAgent: req.headers["user-agent"],
+      location: `${location.city}, ${location.country}`,
     });
-    if (user.loginHistory.length > 50) user.loginHistory = user.loginHistory.slice(0, 50);
+
+    if (user.loginHistory.length > 50) {
+
+      user.loginHistory =
+        user.loginHistory.slice(0, 50);
+
+    }
+
     await user.save();
 
-    const token = jwt.sign({ id: user._id, companyId: user.companyId }, JWT_SECRET, { expiresIn: "7d" });
-    res.json({ token, user: { id: user._id, name: user.name, email: user.email, companyId: user.companyId }, msg: "Login successful" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Server error", error: err.message });
-  }
-});
+    console.log("✅ User history saved");
 
+    // ================= GENERATE TOKEN =================
+    console.log("🔑 Generating JWT token...");
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        companyId: user.companyId,
+      },
+      JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+
+    console.log("✅ Token Generated");
+
+    // ================= SEND RESPONSE =================
+    console.log("🚀 Sending success response...");
+
+    res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        companyId: user.companyId,
+      },
+      msg: "Login successful",
+    });
+
+    console.log("========== LOGIN SUCCESS ==========");
+
+  } catch (err) {
+
+    console.log("========== LOGIN ERROR ==========");
+
+    console.error("❌ Full Error:", err);
+
+    console.error("❌ Error Message:", err.message);
+
+    console.error("❌ Stack:", err.stack);
+
+    res.status(500).json({
+      msg: "Server error",
+      error: err.message,
+    });
+
+  }
+
+});
 // Get current user
 router.get("/me", async (req, res) => {
   try {
