@@ -545,4 +545,106 @@ router.put("/:id/deductions", auth, async (req, res) => {
   }
 });
 
+// DELETE endpoint for salary record with two options
+router.delete("/:id", auth, async (req, res) => {
+  try {
+    const salaryId = req.params.id;
+    const { restoreAmounts } = req.query; // Query param: ?restoreAmounts=true
+    
+    // Find the salary record
+    const salary = await Salary.findOne({
+      _id: salaryId,
+      companyId: req.user.companyId
+    });
+    
+    if (!salary) {
+      return res.status(404).json({ 
+        success: false, 
+        msg: "Salary record not found" 
+      });
+    }
+    
+    const monthlyAdvanceDeducted = salary.deductions?.monthlyAdvanceDeducted || 0;
+    const loanDeducted = salary.deductions?.loanDeducted || 0;
+    
+    // If restoreAmounts is true, restore the deducted amounts back to advances
+    if (restoreAmounts === 'true' && (monthlyAdvanceDeducted > 0 || loanDeducted > 0)) {
+      
+      // Restore Monthly Advance
+      if (monthlyAdvanceDeducted > 0) {
+        let monthlyAdvance = await Advance.findOne({
+          workerId: salary.workerId,
+          companyId: req.user.companyId,
+          type: "monthly"
+        });
+        
+        if (monthlyAdvance) {
+          monthlyAdvance.remainingAmount += monthlyAdvanceDeducted;
+          await monthlyAdvance.save();
+          
+          // Create a reversal transaction record
+          await AdvanceTransaction.create({
+            workerId: salary.workerId,
+            advanceId: monthlyAdvance._id,
+            companyId: req.user.companyId,
+            type: "credit",
+            amount: monthlyAdvanceDeducted,
+            remark: `Reversal: Salary deletion for ${salary.month}/${salary.year}`
+          });
+        }
+      }
+      
+      // Restore Loan
+      if (loanDeducted > 0) {
+        let loan = await Advance.findOne({
+          workerId: salary.workerId,
+          companyId: req.user.companyId,
+          type: "loan"
+        });
+        
+        if (loan) {
+          loan.remainingAmount += loanDeducted;
+          await loan.save();
+          
+          // Create a reversal transaction record
+          await AdvanceTransaction.create({
+            workerId: salary.workerId,
+            advanceId: loan._id,
+            companyId: req.user.companyId,
+            type: "credit",
+            amount: loanDeducted,
+            remark: `Reversal: Salary deletion for ${salary.month}/${salary.year}`
+          });
+        }
+      }
+      
+      // Also delete the original deduction transactions
+      await AdvanceTransaction.deleteMany({
+        workerId: salary.workerId,
+        companyId: req.user.companyId,
+        remark: { $regex: `Salary deduction for ${salary.month}/${salary.year}` }
+      });
+    }
+    
+    // Delete the salary record
+    await Salary.findByIdAndDelete(salaryId);
+    
+    res.json({ 
+      success: true, 
+      msg: restoreAmounts === 'true' 
+        ? "Salary deleted and deducted amounts restored to advances" 
+        : "Salary deleted successfully",
+      restored: {
+        monthlyAdvance: restoreAmounts === 'true' ? monthlyAdvanceDeducted : 0,
+        loan: restoreAmounts === 'true' ? loanDeducted : 0
+      }
+    });
+  } catch (error) {
+    console.error("Error deleting salary:", error);
+    res.status(500).json({ 
+      success: false, 
+      msg: "Server error while deleting salary record" 
+    });
+  }
+});
 module.exports = router;
