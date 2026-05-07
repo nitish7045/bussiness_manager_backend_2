@@ -5,18 +5,24 @@ console.log("📧 Initializing email service...");
 console.log("EMAIL_USER:", process.env.EMAIL_USER ? "✅ Set" : "❌ Missing");
 console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ Set" : "❌ Missing");
 
+// Use port 587 with TLS instead of 465 with SSL
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
-  port: 465,
-  secure: true,
+  port: 587,
+  secure: false, // false for port 587
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
   family: 4, // Force IPv4
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 10000,
+  requireTLS: true, // Require TLS
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+  // Add these to handle Render's network
+  tls: {
+    rejectUnauthorized: false
+  }
 });
 
 // Verify transporter configuration
@@ -65,6 +71,9 @@ const sendEmail = async (to, subject, html, from = null) => {
     }
     if (error.code === 'ECONNECTION') {
       console.error("❌ Connection error - Server unreachable");
+    }
+    if (error.code === 'ETIMEDOUT') {
+      console.error("❌ Timeout - Connection took too long");
     }
     
     return false;
