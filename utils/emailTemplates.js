@@ -1,308 +1,722 @@
 // backend/utils/emailTemplates.js
+
 const { getDeviceInfo } = require("../services/deviceService");
 const { getLocationFromIP } = require("../services/locationService");
 
-// Common footer for all emails (helps with spam prevention)
+// ======================================================
+// COMMON FOOTER
+// ======================================================
+
 const getCommonFooter = () => {
   const currentYear = new Date().getFullYear();
+
   return `
-    <div style="text-align: center; margin-top: 30px; padding: 20px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
-      <p style="color:#6b7280; font-size:12px; margin:0 0 10px 0;">
-        <strong>Business Manager</strong><br>
-        123 Business Street, Suite 100<br>
-        Mumbai, Maharashtra 400001, India
-      </p>
-      <p style="color:#9ca3af; font-size:11px; margin:10px 0;">
-        This is an automated transactional email from your Business Manager account.<br>
-        If you didn't request this email, you can safely ignore it.
-      </p>
-      <p style="color:#cbd5e1; font-size:10px; margin:10px 0;">
-        &copy; ${currentYear} Business Manager. All rights reserved.
-      </p>
-    </div>
+  <div style="
+    margin-top:35px;
+    padding-top:20px;
+    border-top:1px solid #e5e7eb;
+    text-align:center;
+  ">
+    <p style="
+      color:#6b7280;
+      font-size:12px;
+      line-height:20px;
+      margin:0;
+    ">
+      <strong>Business Manager</strong><br>
+      Mumbai, Maharashtra, India
+    </p>
+
+    <p style="
+      color:#9ca3af;
+      font-size:11px;
+      line-height:18px;
+      margin-top:12px;
+    ">
+      This is an automated transactional email related to your account activity.
+    </p>
+
+    <p style="
+      color:#cbd5e1;
+      font-size:10px;
+      margin-top:12px;
+    ">
+      © ${currentYear} Business Manager
+    </p>
+  </div>
   `;
 };
 
-// Wrong Password Email Template
-async function getWrongPasswordEmail(email, attemptCount, req) {
-  const location = await getLocationFromIP(req);
-  const device = getDeviceInfo(req.headers['user-agent']);
-  let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip;
-  if (ip && ip.startsWith('::ffff:')) ip = ip.substring(7);
-  const time = new Date().toLocaleString();
+// ======================================================
+// EMAIL LAYOUT WRAPPER
+// ======================================================
 
-  return `<!DOCTYPE html>
+const createEmailLayout = ({
+  title,
+  subtitle,
+  headerColor = "#4f46e5",
+  body,
+}) => {
+  return `
+<!DOCTYPE html>
 <html>
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Security Alert - Failed Login Attempt</title>
-<style>
-  body { margin:0; padding:0; background-color:#f4f4f5; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-  .container { max-width:560px; width:100%; background-color:#ffffff; border-radius:16px; overflow:hidden; }
-  .header { background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding:40px 30px; text-align:center; }
-  .content { padding:40px 30px; }
-  .footer { background-color:#f9fafb; padding:20px; text-align:center; }
-</style>
+<title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;width:100%;background-color:#ffffff;border-radius:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0;">⚠️ Security Alert</h1>
-<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">Failed Login Attempt Detected</p>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p style="color:#1f2937;font-size:16px;margin-bottom:20px;">Hello <strong>${email.split('@')[0]}</strong>,</p>
-<p style="color:#4b5563;font-size:15px;line-height:24px;margin-bottom:25px;">We detected a <strong style="color:#dc2626;">failed login attempt</strong> on your Business Manager account. This is attempt #${attemptCount} with incorrect password.</p>
-<div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:25px;border:1px solid #e5e7eb;">
-<h3 style="color:#374151;font-size:16px;margin:0 0 15px 0;">📍 Login Details:</h3>
-<table width="100%" style="font-size:14px;">
-<tr><td style="padding:8px 0;color:#6b7280;">Time:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${time}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">IP Address:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${ip}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Location:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.city}, ${location.country}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">ISP:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Device:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.device}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">OS:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.os}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Browser:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.browser}</td></tr>
-</table>
-</div>
-<div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px;margin-bottom:25px;border-radius:8px;">
-<p style="color:#92400e;font-size:13px;margin:0;"><strong>🔒 What to do:</strong> If this wasn't you, please secure your account immediately by changing your password.</p>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
 
-// Login Notification Email Template
-async function getLoginNotificationEmail(email, req, isNewLocation) {
-  const location = await getLocationFromIP(req);
-  const device = getDeviceInfo(req.headers['user-agent']);
-  let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip;
-  if (ip && ip.startsWith('::ffff:')) ip = ip.substring(7);
-  const time = new Date().toLocaleString();
+<body style="
+  margin:0;
+  padding:0;
+  background:#f3f4f6;
+  font-family:Arial,sans-serif;
+">
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${isNewLocation ? "New Login Detected" : "Login Notification"}</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;width:100%;background-color:#ffffff;border-radius:16px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg, #10b981 0%, #059669 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#ffffff;font-size:24px;font-weight:700;margin:0;">${isNewLocation ? "🔐 New Login Detected" : "✅ Successful Login"}</h1>
-<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">${isNewLocation ? "We noticed a login from a new device/location" : "You've successfully signed in to your account"}</p>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p style="color:#1f2937;font-size:16px;margin-bottom:20px;">Hello <strong>${email.split('@')[0]}</strong>,</p>
-<p style="color:#4b5563;font-size:15px;line-height:24px;margin-bottom:25px;">${isNewLocation ? "We detected a sign-in to your account from a new device or location. If this was you, no further action is needed." : "Your account was successfully accessed. Here are the login details:"}</p>
-<div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:25px;border:1px solid #e5e7eb;">
-<h3 style="color:#374151;font-size:16px;margin:0 0 15px 0;">📍 Login Information:</h3>
-<table width="100%" style="font-size:14px;">
-<tr><td style="padding:8px 0;color:#6b7280;">Time:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${time}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">IP Address:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${ip}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Location:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.country}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">ISP:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Device:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.device}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Operating System:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.os}</td></tr>
-<tr><td style="padding:8px 0;color:#6b7280;">Browser:</td><td style="padding:8px 0;color:#1f2937;font-weight:500;">${device.browser}</td></tr>
-</table>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
+<table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
+<tr>
+<td align="center">
 
-// Welcome Email Template
-async function getWelcomeEmail(name, email) {
-  const currentYear = new Date().getFullYear();
-  
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Welcome to Business Manager</title>
-</head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:20px;box-shadow:0 20px 35px -10px rgba(0,0,0,0.1);overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);padding:50px 30px 40px;text-align:center;">
-<h1 style="color:#ffffff;font-size:32px;font-weight:700;margin:0;">Welcome Aboard! 🎉</h1>
-<p style="color:rgba(255,255,255,0.95);font-size:18px;margin:10px 0 0 0;">Your journey with Business Manager begins now</p>
-</td></tr>
-<tr><td style="padding:40px 35px;">
-<h2 style="color:#1f2937;font-size:24px;margin:0 0 10px;">Congratulations, ${name.split(' ')[0]}! 🎊</h2>
-<p style="color:#4b5563;font-size:16px;line-height:26px;margin-bottom:25px;">
-Thank you for choosing <strong style="color:#667eea;">Business Manager</strong>. Your account has been successfully created.
+<table width="100%" cellpadding="0" cellspacing="0"
+style="
+  max-width:560px;
+  background:#ffffff;
+  border-radius:14px;
+  overflow:hidden;
+  border:1px solid #e5e7eb;
+">
+
+<tr>
+<td style="
+  background:${headerColor};
+  padding:35px 30px;
+  text-align:center;
+">
+
+<h1 style="
+  color:#ffffff;
+  margin:0;
+  font-size:28px;
+  font-weight:700;
+">
+${title}
+</h1>
+
+<p style="
+  color:rgba(255,255,255,0.9);
+  margin:10px 0 0 0;
+  font-size:14px;
+">
+${subtitle}
 </p>
-<p style="color:#4b5563;font-size:15px;line-height:24px;margin-bottom:25px;">
-<strong>To ensure you receive all our emails, please add <span style="color:#667eea;">work.nitishrajbhar@gmail.com</span> to your address book.</strong>
-</p>
-<div style="background:linear-gradient(135deg, #f3f4f6 0%, #ffffff 100%);border-radius:16px;padding:25px;margin-bottom:25px;border:1px solid #e5e7eb;">
-<h3 style="color:#374151;font-size:18px;margin:0 0 15px;">✨ What you can do now:</h3>
-<table width="100%" style="font-size:15px;">
-<tr><td style="padding:8px 0;"><span style="color:#10b981;font-weight:bold;">✓</span> Manage your company profile</td></tr>
-<tr><td style="padding:8px 0;"><span style="color:#10b981;font-weight:bold;">✓</span> Track employee attendance</td></tr>
-<tr><td style="padding:8px 0;"><span style="color:#10b981;font-weight:bold;">✓</span> Generate invoices and billing</td></tr>
-<tr><td style="padding:8px 0;"><span style="color:#10b981;font-weight:bold;">✓</span> Access real-time analytics</td></tr>
-</table>
-</div>
-<div style="text-align:center;margin-bottom:25px;">
-<a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" style="display:inline-block;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;text-decoration:none;padding:14px 35px;border-radius:10px;font-weight:600;">🚀 Go to Dashboard</a>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
 
-// OTP Email Template
+</td>
+</tr>
+
+<tr>
+<td style="padding:40px 30px;">
+${body}
+${getCommonFooter()}
+</td>
+</tr>
+
+</table>
+
+</td>
+</tr>
+</table>
+
+</body>
+</html>
+`;
+};
+
+// ======================================================
+// OTP EMAIL
+// ======================================================
+
 async function getOTPEmail(email, otp) {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Email Verification</title></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#fff;font-size:28px;margin:0;">Verify Your Email</h1>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p>Hello <strong>${email.split('@')[0]}</strong>,</p>
-<p>Please use the verification code below to complete your registration. This code is valid for <strong>5 minutes</strong>.</p>
-<div style="background:#f3f4f6;border-radius:12px;padding:30px;text-align:center;">
-<div style="background:#fff;border-radius:8px;padding:15px;display:inline-block;">
-<p style="font-size:48px;font-weight:800;color:#667eea;margin:0;letter-spacing:8px;">${otp}</p>
-</div>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  return createEmailLayout({
+    title: "Email Verification",
+    subtitle: "Use the verification code below",
+    headerColor: "#4f46e5",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${email.split("@")[0]}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        Use the verification code below to continue.
+        This code is valid for 5 minutes.
+      </p>
+
+      <div style="
+        margin:35px 0;
+        text-align:center;
+      ">
+
+        <div style="
+          display:inline-block;
+          background:#f9fafb;
+          border:1px solid #d1d5db;
+          border-radius:12px;
+          padding:18px 35px;
+        ">
+
+          <div style="
+            font-size:42px;
+            letter-spacing:8px;
+            font-weight:700;
+            color:#4f46e5;
+          ">
+            ${otp}
+          </div>
+
+        </div>
+
+      </div>
+
+      <div style="
+        background:#f9fafb;
+        border-radius:10px;
+        padding:16px;
+      ">
+        <p style="
+          margin:0;
+          color:#6b7280;
+          font-size:13px;
+          line-height:22px;
+        ">
+          If you did not request this verification code,
+          you can safely ignore this email.
+        </p>
+      </div>
+    `,
+  });
 }
 
-// Password Reset OTP Email Template
-async function getPasswordResetOTPEmail(email, name, otp) {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Password Reset OTP</title></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#fff;font-size:28px;margin:0;">🔐 Password Reset</h1>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p>Hello <strong>${name}</strong>,</p>
-<p>We received a request to reset your password. Please use the verification code below to proceed.</p>
-<div style="background:#f3f4f6;border-radius:12px;padding:30px;text-align:center;margin:25px 0;">
-<div style="background:#fff;border-radius:8px;padding:15px;display:inline-block;">
-<p style="font-size:48px;font-weight:800;color:#667eea;margin:0;letter-spacing:8px;">${otp}</p>
-</div>
-</div>
-<p style="color:#6b7280;font-size:13px;">This code will expire in <strong>15 minutes</strong>.</p>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+// ======================================================
+// PASSWORD RESET OTP
+// ======================================================
+
+async function getPasswordResetOTPEmail(
+  email,
+  name,
+  otp
+) {
+  return createEmailLayout({
+    title: "Password Reset",
+    subtitle: "Verification required",
+    headerColor: "#2563eb",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${name}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        We received a request to reset your password.
+        Use the verification code below to continue.
+      </p>
+
+      <div style="
+        margin:35px 0;
+        text-align:center;
+      ">
+
+        <div style="
+          display:inline-block;
+          background:#f9fafb;
+          border:1px solid #d1d5db;
+          border-radius:12px;
+          padding:18px 35px;
+        ">
+
+          <div style="
+            font-size:42px;
+            letter-spacing:8px;
+            font-weight:700;
+            color:#2563eb;
+          ">
+            ${otp}
+          </div>
+
+        </div>
+
+      </div>
+
+      <div style="
+        background:#f9fafb;
+        border-radius:10px;
+        padding:16px;
+      ">
+        <p style="
+          margin:0;
+          color:#6b7280;
+          font-size:13px;
+          line-height:22px;
+        ">
+          This code expires in 15 minutes.
+        </p>
+      </div>
+    `,
+  });
 }
 
-// Password Changed Confirmation Email Template
-async function getPasswordChangedConfirmationEmail(email, name) {
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Password Changed Successfully</title></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#fff;font-size:28px;margin:0;">✅ Password Changed!</h1>
-<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">Your password has been successfully updated</p>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p>Hello <strong>${name}</strong>,</p>
-<p>Your Business Manager account password was successfully changed on <strong>${new Date().toLocaleString()}</strong>.</p>
-<div style="background:#dbeafe;border-radius:12px;padding:20px;margin:25px 0;">
-<p style="color:#1e40af;margin:0;">If you made this change, no further action is needed.</p>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
-}
+// ======================================================
+// LOGIN NOTIFICATION
+// ======================================================
 
-// Excessive Attempts Alert Email Template
-async function getExcessiveAttemptsAlertEmail(email, attemptCount, req) {
+async function getLoginNotificationEmail(
+  email,
+  req,
+  isNewLocation
+) {
   const location = await getLocationFromIP(req);
-  let ip = req.headers['x-forwarded-for'] || req.connection.remoteAddress || req.socket.remoteAddress || req.ip;
-  if (ip && ip.startsWith('::ffff:')) ip = ip.substring(7);
 
-  return `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>Security Alert: Multiple Failed Attempts</title></head>
-<body style="margin:0;padding:0;background-color:#f4f4f5;font-family:Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 20px;">
-<tr><td align="center">
-<table width="100%" style="max-width:560px;background:#fff;border-radius:16px;overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg,#dc2626 0%,#991b1b 100%);padding:40px 30px;text-align:center;">
-<h1 style="color:#fff;font-size:24px;margin:0;">🚨 Multiple Failed Attempts</h1>
-<p style="color:rgba(255,255,255,0.9);margin:10px 0 0 0;">Your account has been temporarily locked</p>
-</td></tr>
-<tr><td style="padding:40px 30px;">
-<p>Hello <strong>${email.split('@')[0]}</strong>,</p>
-<div style="background:#fee2e2;border-radius:12px;padding:20px;margin-bottom:25px;border:1px solid #fecaca;">
-<p style="color:#991b1b;margin:0;"><strong>⚠️ Critical Security Alert</strong><br>Your account has been temporarily locked due to ${attemptCount} failed login attempts.</p>
-</div>
-<p style="color:#4b5563;margin-bottom:20px;">This could indicate someone is trying to access your account without authorization.</p>
-<div style="background:#f9fafb;border-radius:12px;padding:20px;margin-bottom:25px;">
-<h3 style="margin:0 0 15px 0;">Attempt Details:</h3>
-<table width="100%">
-<tr><td style="padding:8px 0;">Total Attempts:</td><td style="padding:8px 0;color:#dc2626;font-weight:700;">${attemptCount}</td></tr>
-<tr><td style="padding:8px 0;">IP Address:</td><td style="padding:8px 0;font-weight:500;">${ip}</td></tr>
-<tr><td style="padding:8px 0;">Location:</td><td style="padding:8px 0;font-weight:500;">${location.city}, ${location.country}</td></tr>
-</table>
-</div>
-<div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px;">
-<p style="color:#92400e;margin:0;"><strong>🔒 Recommended Actions:</strong><br>1. Change your password immediately<br>2. Review recent account activity<br>3. Contact support</p>
-</div>
-${getCommonFooter()}
-</td></tr>
-</table>
-</td></tr>
-</table>
-</body>
-</html>`;
+  const device = getDeviceInfo(
+    req.headers["user-agent"]
+  );
+
+  let ip =
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    req.ip;
+
+  if (ip && ip.startsWith("::ffff:")) {
+    ip = ip.substring(7);
+  }
+
+  const time = new Date().toLocaleString();
+
+  return createEmailLayout({
+    title: isNewLocation
+      ? "New Login Detected"
+      : "Login Successful",
+
+    subtitle: "Recent account activity",
+
+    headerColor: "#059669",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${email.split("@")[0]}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        Your account was recently accessed successfully.
+      </p>
+
+      <div style="
+        background:#f9fafb;
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        padding:20px;
+        margin-top:25px;
+      ">
+
+        <table width="100%" style="font-size:14px;">
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Time
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${time}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              IP Address
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${ip}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Location
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${location.city}, ${location.country}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Device
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${device.device}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Browser
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${device.browser}
+            </td>
+          </tr>
+
+        </table>
+
+      </div>
+    `,
+  });
+}
+
+// ======================================================
+// WRONG PASSWORD ALERT
+// ======================================================
+
+async function getWrongPasswordEmail(
+  email,
+  attemptCount,
+  req
+) {
+  const location = await getLocationFromIP(req);
+
+  const device = getDeviceInfo(
+    req.headers["user-agent"]
+  );
+
+  let ip =
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    req.ip;
+
+  if (ip && ip.startsWith("::ffff:")) {
+    ip = ip.substring(7);
+  }
+
+  const time = new Date().toLocaleString();
+
+  return createEmailLayout({
+    title: "Security Notice",
+    subtitle: "Failed sign-in attempt detected",
+    headerColor: "#dc2626",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${email.split("@")[0]}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        We detected an unsuccessful sign-in attempt
+        to your account.
+      </p>
+
+      <div style="
+        background:#f9fafb;
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        padding:20px;
+        margin-top:25px;
+      ">
+
+        <table width="100%" style="font-size:14px;">
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Attempts
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${attemptCount}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Time
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${time}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Location
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${location.city}, ${location.country}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Device
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${device.device}
+            </td>
+          </tr>
+
+        </table>
+
+      </div>
+
+      <div style="
+        background:#fef3c7;
+        border-radius:10px;
+        padding:16px;
+        margin-top:20px;
+      ">
+        <p style="
+          margin:0;
+          color:#92400e;
+          font-size:13px;
+          line-height:22px;
+        ">
+          If this was not you, consider updating your password.
+        </p>
+      </div>
+    `,
+  });
+}
+
+// ======================================================
+// PASSWORD CHANGED
+// ======================================================
+
+async function getPasswordChangedConfirmationEmail(
+  email,
+  name
+) {
+  return createEmailLayout({
+    title: "Password Updated",
+    subtitle: "Your password was changed successfully",
+    headerColor: "#059669",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${name}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        Your account password was updated successfully
+        on ${new Date().toLocaleString()}.
+      </p>
+
+      <div style="
+        background:#ecfdf5;
+        border-radius:10px;
+        padding:16px;
+        margin-top:20px;
+      ">
+        <p style="
+          margin:0;
+          color:#065f46;
+          font-size:13px;
+          line-height:22px;
+        ">
+          If you did not make this change,
+          please secure your account immediately.
+        </p>
+      </div>
+    `,
+  });
+}
+
+// ======================================================
+// WELCOME EMAIL
+// ======================================================
+
+async function getWelcomeEmail(name, email) {
+  return createEmailLayout({
+    title: "Welcome",
+    subtitle: "Your account has been created",
+    headerColor: "#4f46e5",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${name}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        Welcome to Business Manager.
+        Your account setup is complete and ready to use.
+      </p>
+
+      <div style="
+        background:#f9fafb;
+        border-radius:12px;
+        padding:20px;
+        margin-top:25px;
+      ">
+
+        <h3 style="
+          margin-top:0;
+          color:#111827;
+          font-size:16px;
+        ">
+          Available Features
+        </h3>
+
+        <ul style="
+          color:#4b5563;
+          line-height:28px;
+          padding-left:20px;
+        ">
+          <li>Attendance management</li>
+          <li>Invoice and billing</li>
+          <li>Worker management</li>
+          <li>Analytics dashboard</li>
+        </ul>
+
+      </div>
+
+      <div style="
+        text-align:center;
+        margin-top:30px;
+      ">
+
+        <a
+          href="${process.env.FRONTEND_URL || "http://localhost:5173"}"
+          style="
+            display:inline-block;
+            background:#4f46e5;
+            color:#ffffff;
+            text-decoration:none;
+            padding:14px 30px;
+            border-radius:10px;
+            font-weight:600;
+          "
+        >
+          Open Dashboard
+        </a>
+
+      </div>
+    `,
+  });
+}
+
+// ======================================================
+// EXCESSIVE ATTEMPTS ALERT
+// ======================================================
+
+async function getExcessiveAttemptsAlertEmail(
+  email,
+  attemptCount,
+  req
+) {
+  const location = await getLocationFromIP(req);
+
+  let ip =
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress ||
+    req.socket.remoteAddress ||
+    req.ip;
+
+  if (ip && ip.startsWith("::ffff:")) {
+    ip = ip.substring(7);
+  }
+
+  return createEmailLayout({
+    title: "Account Protection Alert",
+    subtitle: "Multiple failed sign-in attempts detected",
+    headerColor: "#b91c1c",
+
+    body: `
+      <p style="font-size:16px;color:#111827;">
+        Hello <strong>${email.split("@")[0]}</strong>,
+      </p>
+
+      <p style="
+        color:#4b5563;
+        font-size:15px;
+        line-height:24px;
+      ">
+        Your account has been temporarily protected
+        due to multiple unsuccessful login attempts.
+      </p>
+
+      <div style="
+        background:#f9fafb;
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        padding:20px;
+        margin-top:25px;
+      ">
+
+        <table width="100%" style="font-size:14px;">
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Failed Attempts
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${attemptCount}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              IP Address
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${ip}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Location
+            </td>
+
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${location.city}, ${location.country}
+            </td>
+          </tr>
+
+        </table>
+
+      </div>
+    `,
+  });
 }
 
 module.exports = {
