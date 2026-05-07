@@ -1,6 +1,7 @@
-// backend/services/emailService.js
-
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+dns.setDefaultResultOrder("ipv4first");
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -12,48 +13,21 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS,
   },
 
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+
   tls: {
     rejectUnauthorized: false,
   },
+
+  family: 4, // FORCE IPV4
 });
 
-// Verify connection
 transporter.verify((error, success) => {
   if (error) {
     console.log("❌ SMTP ERROR:", error);
   } else {
-    console.log("✅ SMTP SERVER READY");
+    console.log("✅ SMTP READY");
   }
 });
-
-const sendEmail = async (
-  to,
-  subject,
-  html,
-  from = null
-) => {
-  try {
-    await transporter.sendMail({
-      from:
-        from ||
-        `"Business Manager" <${process.env.EMAIL_USER}>`,
-
-      to,
-      subject,
-      html,
-    });
-
-    console.log(`✅ Email sent to ${to}`);
-
-    return true;
-  } catch (error) {
-    console.error(
-      `❌ Failed to send email to ${to}:`,
-      error
-    );
-
-    return false;
-  }
-};
-
-module.exports = { sendEmail };
