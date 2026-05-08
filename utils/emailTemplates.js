@@ -9,6 +9,7 @@ const { getLocationFromIP } = require("../services/locationService");
 
 function getISTTime() {
     const now = new Date();
+    // Format: "08/05/2026, 04:53:37 PM"
     return now.toLocaleString('en-IN', {
         timeZone: 'Asia/Kolkata',
         year: 'numeric',
