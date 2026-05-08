@@ -357,9 +357,8 @@ async function getLoginNotificationEmail(
               Location
             </td>
 
-            <td style="padding:8px 0;color:#111827;font-weight:600;">
-              ${location.city}, ${location.country}
-            </td>
+            <td style="padding:8px 0;color:#6b7280;">Location:</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
           </tr>
 
           <tr>
@@ -470,9 +469,8 @@ async function getWrongPasswordEmail(
               Location
             </td>
 
-            <td style="padding:8px 0;color:#111827;font-weight:600;">
-              ${location.city}, ${location.country}
-            </td>
+            <td style="padding:8px 0;color:#6b7280;">Location:</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
           </tr>
 
           <tr>
@@ -707,9 +705,8 @@ async function getExcessiveAttemptsAlertEmail(
               Location
             </td>
 
-            <td style="padding:8px 0;color:#111827;font-weight:600;">
-              ${location.city}, ${location.country}
-            </td>
+            <td style="padding:8px 0;color:#6b7280;">Location:</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
           </tr>
 
         </table>
