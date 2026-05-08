@@ -7,10 +7,27 @@ const { getLocationFromIP } = require("../services/locationService");
 // COMMON FOOTER
 // ======================================================
 
-const getCommonFooter = () => {
-  const currentYear = new Date().getFullYear();
+function getISTTime() {
+    const now = new Date();
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+    const istTime = new Date(now.getTime() + istOffset);
 
-  return `
+    return istTime.toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+}
+const getCommonFooter = () => {
+    const currentYear = new Date().getFullYear();
+
+    return `
   <div style="
     margin-top:35px;
     padding-top:20px;
@@ -52,12 +69,12 @@ const getCommonFooter = () => {
 // ======================================================
 
 const createEmailLayout = ({
-  title,
-  subtitle,
-  headerColor = "#4f46e5",
-  body,
+    title,
+    subtitle,
+    headerColor = "#4f46e5",
+    body,
 }) => {
-  return `
+    return `
 <!DOCTYPE html>
 <html>
 
@@ -137,12 +154,12 @@ ${getCommonFooter()}
 // ======================================================
 
 async function getOTPEmail(email, otp) {
-  return createEmailLayout({
-    title: "Email Verification",
-    subtitle: "Use the verification code below",
-    headerColor: "#4f46e5",
+    return createEmailLayout({
+        title: "Email Verification",
+        subtitle: "Use the verification code below",
+        headerColor: "#4f46e5",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${email.split("@")[0]}</strong>,
       </p>
@@ -198,7 +215,7 @@ async function getOTPEmail(email, otp) {
         </p>
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -206,16 +223,16 @@ async function getOTPEmail(email, otp) {
 // ======================================================
 
 async function getPasswordResetOTPEmail(
-  email,
-  name,
-  otp
+    email,
+    name,
+    otp
 ) {
-  return createEmailLayout({
-    title: "Password Reset",
-    subtitle: "Verification required",
-    headerColor: "#2563eb",
+    return createEmailLayout({
+        title: "Password Reset",
+        subtitle: "Verification required",
+        headerColor: "#2563eb",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${name}</strong>,
       </p>
@@ -270,7 +287,7 @@ async function getPasswordResetOTPEmail(
         </p>
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -278,38 +295,38 @@ async function getPasswordResetOTPEmail(
 // ======================================================
 
 async function getLoginNotificationEmail(
-  email,
-  req,
-  isNewLocation
+    email,
+    req,
+    isNewLocation
 ) {
-  const location = await getLocationFromIP(req);
+    const location = await getLocationFromIP(req);
 
-  const device = getDeviceInfo(
-    req.headers["user-agent"]
-  );
+    const device = getDeviceInfo(
+        req.headers["user-agent"]
+    );
 
-  let ip =
-    req.headers["x-forwarded-for"] ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    req.ip;
+    let ip =
+        req.headers["x-forwarded-for"] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.ip;
 
-  if (ip && ip.startsWith("::ffff:")) {
-    ip = ip.substring(7);
-  }
+    if (ip && ip.startsWith("::ffff:")) {
+        ip = ip.substring(7);
+    }
 
-  const time = new Date().toLocaleString();
+    const time = new Date().toLocaleString();
 
-  return createEmailLayout({
-    title: isNewLocation
-      ? "New Login Detected"
-      : "Login Successful",
+    return createEmailLayout({
+        title: isNewLocation
+            ? "New Login Detected"
+            : "Login Successful",
 
-    subtitle: "Recent account activity",
+        subtitle: "Recent account activity",
 
-    headerColor: "#059669",
+        headerColor: "#059669",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${email.split("@")[0]}</strong>,
       </p>
@@ -357,8 +374,17 @@ async function getLoginNotificationEmail(
               Location
             </td>
 
-            <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
+             <td style="padding:8px 0;color:#6b7280;">Location:</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">
+  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
+  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
+  ${location.country !== "Unknown" ? location.country : "Unknown"}
+  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
+</td><tr>
+  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
+  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
+</tr>
+          </tr>
           </tr>
 
           <tr>
@@ -385,7 +411,7 @@ async function getLoginNotificationEmail(
 
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -393,34 +419,34 @@ async function getLoginNotificationEmail(
 // ======================================================
 
 async function getWrongPasswordEmail(
-  email,
-  attemptCount,
-  req
+    email,
+    attemptCount,
+    req
 ) {
-  const location = await getLocationFromIP(req);
+    const location = await getLocationFromIP(req);
 
-  const device = getDeviceInfo(
-    req.headers["user-agent"]
-  );
+    const device = getDeviceInfo(
+        req.headers["user-agent"]
+    );
 
-  let ip =
-    req.headers["x-forwarded-for"] ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    req.ip;
+    let ip =
+        req.headers["x-forwarded-for"] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.ip;
 
-  if (ip && ip.startsWith("::ffff:")) {
-    ip = ip.substring(7);
-  }
+    if (ip && ip.startsWith("::ffff:")) {
+        ip = ip.substring(7);
+    }
 
-  const time = new Date().toLocaleString();
+    const time = new Date().toLocaleString();
 
-  return createEmailLayout({
-    title: "Security Notice",
-    subtitle: "Failed sign-in attempt detected",
-    headerColor: "#dc2626",
+    return createEmailLayout({
+        title: "Security Notice",
+        subtitle: "Failed sign-in attempt detected",
+        headerColor: "#dc2626",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${email.split("@")[0]}</strong>,
       </p>
@@ -469,8 +495,17 @@ async function getWrongPasswordEmail(
               Location
             </td>
 
-            <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
+             <td style="padding:8px 0;color:#6b7280;">Location:</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">
+  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
+  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
+  ${location.country !== "Unknown" ? location.country : "Unknown"}
+  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
+</td><tr>
+  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
+  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
+</tr>
+          </tr>
           </tr>
 
           <tr>
@@ -503,7 +538,7 @@ async function getWrongPasswordEmail(
         </p>
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -511,15 +546,15 @@ async function getWrongPasswordEmail(
 // ======================================================
 
 async function getPasswordChangedConfirmationEmail(
-  email,
-  name
+    email,
+    name
 ) {
-  return createEmailLayout({
-    title: "Password Updated",
-    subtitle: "Your password was changed successfully",
-    headerColor: "#059669",
+    return createEmailLayout({
+        title: "Password Updated",
+        subtitle: "Your password was changed successfully",
+        headerColor: "#059669",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${name}</strong>,
       </p>
@@ -550,7 +585,7 @@ async function getPasswordChangedConfirmationEmail(
         </p>
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -558,12 +593,12 @@ async function getPasswordChangedConfirmationEmail(
 // ======================================================
 
 async function getWelcomeEmail(name, email) {
-  return createEmailLayout({
-    title: "Welcome",
-    subtitle: "Your account has been created",
-    headerColor: "#4f46e5",
+    return createEmailLayout({
+        title: "Welcome",
+        subtitle: "Your account has been created",
+        headerColor: "#4f46e5",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${name}</strong>,
       </p>
@@ -627,7 +662,7 @@ async function getWelcomeEmail(name, email) {
 
       </div>
     `,
-  });
+    });
 }
 
 // ======================================================
@@ -635,28 +670,28 @@ async function getWelcomeEmail(name, email) {
 // ======================================================
 
 async function getExcessiveAttemptsAlertEmail(
-  email,
-  attemptCount,
-  req
+    email,
+    attemptCount,
+    req
 ) {
-  const location = await getLocationFromIP(req);
+    const location = await getLocationFromIP(req);
 
-  let ip =
-    req.headers["x-forwarded-for"] ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    req.ip;
+    let ip =
+        req.headers["x-forwarded-for"] ||
+        req.connection.remoteAddress ||
+        req.socket.remoteAddress ||
+        req.ip;
 
-  if (ip && ip.startsWith("::ffff:")) {
-    ip = ip.substring(7);
-  }
+    if (ip && ip.startsWith("::ffff:")) {
+        ip = ip.substring(7);
+    }
 
-  return createEmailLayout({
-    title: "Account Protection Alert",
-    subtitle: "Multiple failed sign-in attempts detected",
-    headerColor: "#b91c1c",
+    return createEmailLayout({
+        title: "Account Protection Alert",
+        subtitle: "Multiple failed sign-in attempts detected",
+        headerColor: "#b91c1c",
 
-    body: `
+        body: `
       <p style="font-size:16px;color:#111827;">
         Hello <strong>${email.split("@")[0]}</strong>,
       </p>
@@ -706,22 +741,31 @@ async function getExcessiveAttemptsAlertEmail(
             </td>
 
             <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">📍 ${location.city}, ${location.region}, ${location.country}</td>
+<td style="padding:8px 0;color:#1f2937;font-weight:500;">
+  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
+  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
+  ${location.country !== "Unknown" ? location.country : "Unknown"}
+  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
+</td><tr>
+  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
+  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
+</tr>
           </tr>
 
         </table>
 
       </div>
     `,
-  });
+    });
 }
 
 module.exports = {
-  getWrongPasswordEmail,
-  getLoginNotificationEmail,
-  getWelcomeEmail,
-  getOTPEmail,
-  getPasswordResetOTPEmail,
-  getPasswordChangedConfirmationEmail,
-  getExcessiveAttemptsAlertEmail,
+    getWrongPasswordEmail,
+    getLoginNotificationEmail,
+    getWelcomeEmail,
+    getOTPEmail,
+    getPasswordResetOTPEmail,
+    getPasswordChangedConfirmationEmail,
+    getExcessiveAttemptsAlertEmail,
 };
+const time = getISTTime();
