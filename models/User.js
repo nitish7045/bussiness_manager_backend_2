@@ -81,15 +81,19 @@ const userSchema = new mongoose.Schema({
   
   // Company Details with Logo stored as Base64
   companyDetails: {
-    name: { type: String, default: "" },
-    phone: { type: String, default: "" },
-    email: { type: String, default: "" },
-    address: { type: String, default: "" },
-    gst: { type: String, default: "" },
-    logo: { type: String, default: null },  // Base64 encoded logo
-    website: { type: String, default: "" },
-    pan: { type: String, default: "" }
-  },
+  name: { type: String, default: "" },
+  phone: { type: String, default: "" },
+  email: { type: String, default: "" },
+  address: { type: String, default: "" },
+  gst: { type: String, default: "" },
+  logo: { type: String, default: null },
+  website: { type: String, default: "" },
+  pan: { type: String, default: "" },
+
+  // WhatsApp Notification Settings
+  whatsappNumber: { type: String, default: "" },
+  whatsappApiKey: { type: String, default: "" }
+},
   
   // Role Management
   role: {

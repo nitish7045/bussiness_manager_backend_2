@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
+
 const connectDB = require("./config/db");
 
 const app = express();
@@ -9,6 +10,7 @@ const app = express();
 // 🔥 IMPORTANT: Increase payload limit for Base64 images
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.set("trust proxy", true);
 
 // ==================== CORS CONFIGURATION ====================
 app.use(
