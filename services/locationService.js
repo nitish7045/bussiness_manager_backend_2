@@ -2,15 +2,12 @@
 
 const { LOCATION_CACHE } = require("../utils/constants");
 
-// Use a more reliable free API
 async function getLocationFromIP(req) {
   try {
-    // Get real client IP
     let ip = getRealClientIP(req);
     
     console.log(`📍 Getting location for IP: ${ip}`);
 
-    // Handle localhost/development
     if (isLocalIP(ip)) {
       return {
         city: "Development",
@@ -28,7 +25,7 @@ async function getLocationFromIP(req) {
       return cachedData;
     }
 
-    // Try multiple services
+    // Try multiple services for better accuracy
     let locationData = await getLocationFromMultipleServices(ip);
     
     if (!locationData) {
@@ -37,13 +34,26 @@ async function getLocationFromIP(req) {
         region: "Unknown",
         country: "Unknown",
         isp: "Unknown",
-        ip: ip
+        ip: ip,
+        isMobileNetwork: false,
+        networkType: "Unknown"
       };
     }
 
-    // Save to cache
-    saveToCache(ip, locationData);
+    // Detect if it's a mobile network
+    if (locationData.isp && (locationData.isp.toLowerCase().includes('jio') || 
+        locationData.isp.toLowerCase().includes('airtel') ||
+        locationData.isp.toLowerCase().includes('vodafone') ||
+        locationData.isp.toLowerCase().includes('idea') ||
+        locationData.isp.toLowerCase().includes('bsnl') ||
+        locationData.isp.toLowerCase().includes('cellular') ||
+        locationData.isp.toLowerCase().includes('mobile'))) {
+      locationData.isMobileNetwork = true;
+      locationData.networkType = "Mobile";
+      locationData.note = "Mobile network - location may be approximate";
+    }
 
+    saveToCache(ip, locationData);
     return locationData;
 
   } catch (error) {
@@ -57,17 +67,13 @@ async function getLocationFromIP(req) {
   }
 }
 
-// Get real client IP from various headers
 function getRealClientIP(req) {
   const headers = [
-    'cf-connecting-ip',      // Cloudflare
-    'x-forwarded-for',       // Standard proxy header
-    'x-real-ip',             // Nginx proxy header
-    'true-client-ip',        // Custom header
-    'x-client-ip',           // Another common header
-    'x-cluster-client-ip',   // AWS header
-    'forwarded-for',         // Forwarded header
-    'forwarded',             // Forwarded header
+    'cf-connecting-ip',
+    'x-forwarded-for',
+    'x-real-ip',
+    'true-client-ip',
+    'x-client-ip',
   ];
   
   let ip = null;
@@ -76,7 +82,6 @@ function getRealClientIP(req) {
     const value = req.headers[header.toLowerCase()];
     if (value) {
       if (header === 'x-forwarded-for') {
-        // Get first IP in the chain
         ip = value.split(',')[0].trim();
       } else {
         ip = value;
@@ -89,12 +94,10 @@ function getRealClientIP(req) {
     ip = req.socket?.remoteAddress || req.connection?.remoteAddress || req.ip;
   }
   
-  // Clean IPv6 prefix
   if (ip && ip.startsWith('::ffff:')) {
     ip = ip.substring(7);
   }
   
-  // Remove port if present
   if (ip && ip.includes(':')) {
     ip = ip.split(':')[0];
   }
@@ -103,7 +106,6 @@ function getRealClientIP(req) {
   return ip;
 }
 
-// Check if IP is local
 function isLocalIP(ip) {
   if (!ip) return true;
   
@@ -123,12 +125,11 @@ function isLocalIP(ip) {
   return false;
 }
 
-// Try multiple geolocation services
 async function getLocationFromMultipleServices(ip) {
   const services = [
     {
       name: 'ip-api',
-      url: `http://ip-api.com/json/${ip}?fields=status,country,city,regionName,isp,lat,lon,query`,
+      url: `http://ip-api.com/json/${ip}?fields=status,country,city,regionName,isp,lat,lon,query,mobile,proxy`,
       timeout: 3000,
       parse: (data) => {
         if (data.status === 'success') {
@@ -139,7 +140,9 @@ async function getLocationFromMultipleServices(ip) {
             isp: data.isp || "Unknown",
             lat: data.lat,
             lon: data.lon,
-            ip: data.query
+            ip: data.query,
+            isMobile: data.mobile || false,
+            isProxy: data.proxy || false
           };
         }
         return null;
@@ -158,7 +161,9 @@ async function getLocationFromMultipleServices(ip) {
             isp: data.isp || data.connection?.isp || "Unknown",
             lat: data.latitude,
             lon: data.longitude,
-            ip: data.ip
+            ip: data.ip,
+            isMobile: data.type === 'mobile' || false,
+            isProxy: data.proxy || false
           };
         }
         return null;
@@ -177,7 +182,9 @@ async function getLocationFromMultipleServices(ip) {
             isp: data.org?.split(' ').slice(1).join(' ') || "Unknown",
             lat: data.loc?.split(',')[0],
             lon: data.loc?.split(',')[1],
-            ip: data.ip
+            ip: data.ip,
+            isMobile: false,
+            isProxy: data.privacy?.proxy || false
           };
         }
         return null;
@@ -211,11 +218,9 @@ async function getLocationFromMultipleServices(ip) {
   return null;
 }
 
-// Get from cache
 function getFromCache(ip) {
   if (LOCATION_CACHE.has(ip)) {
     const cached = LOCATION_CACHE.get(ip);
-    // Cache valid for 1 hour
     if (Date.now() - cached.timestamp < 3600000) {
       return cached.data;
     }
@@ -223,7 +228,6 @@ function getFromCache(ip) {
   return null;
 }
 
-// Save to cache
 function saveToCache(ip, data) {
   LOCATION_CACHE.set(ip, {
     data: data,

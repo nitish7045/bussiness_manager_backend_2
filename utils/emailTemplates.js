@@ -9,11 +9,7 @@ const { getLocationFromIP } = require("../services/locationService");
 
 function getISTTime() {
     const now = new Date();
-    // Convert to IST (UTC+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
-    const istTime = new Date(now.getTime() + istOffset);
-
-    return istTime.toLocaleString('en-IN', {
+    return now.toLocaleString('en-IN', {
         timeZone: 'Asia/Kolkata',
         year: 'numeric',
         month: '2-digit',
@@ -24,6 +20,7 @@ function getISTTime() {
         hour12: true
     });
 }
+
 const getCommonFooter = () => {
     const currentYear = new Date().getFullYear();
 
@@ -149,6 +146,25 @@ ${getCommonFooter()}
 `;
 };
 
+// Helper function to format location properly
+function formatLocation(location) {
+    const parts = [];
+    if (location.city && location.city !== "Unknown") parts.push(location.city);
+    if (location.region && location.region !== "Unknown") parts.push(location.region);
+    if (location.country && location.country !== "Unknown") parts.push(location.country);
+    
+    if (parts.length === 0) return "Unable to determine";
+    
+    let locationText = parts.join(", ");
+    
+    // Add mobile network note if applicable
+    if (location.isMobileNetwork) {
+        locationText += " (Mobile Network - Location approximate)";
+    }
+    
+    return locationText;
+}
+
 // ======================================================
 // OTP EMAIL
 // ======================================================
@@ -222,11 +238,7 @@ async function getOTPEmail(email, otp) {
 // PASSWORD RESET OTP
 // ======================================================
 
-async function getPasswordResetOTPEmail(
-    email,
-    name,
-    otp
-) {
+async function getPasswordResetOTPEmail(email, name, otp) {
     return createEmailLayout({
         title: "Password Reset",
         subtitle: "Verification required",
@@ -294,19 +306,11 @@ async function getPasswordResetOTPEmail(
 // LOGIN NOTIFICATION
 // ======================================================
 
-async function getLoginNotificationEmail(
-    email,
-    req,
-    isNewLocation
-) {
+async function getLoginNotificationEmail(email, req, isNewLocation) {
     const location = await getLocationFromIP(req);
-
-    const device = getDeviceInfo(
-        req.headers["user-agent"]
-    );
-
-    let ip =
-        req.headers["x-forwarded-for"] ||
+    const device = getDeviceInfo(req.headers["user-agent"]);
+    
+    let ip = req.headers["x-forwarded-for"] ||
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.ip;
@@ -314,16 +318,19 @@ async function getLoginNotificationEmail(
     if (ip && ip.startsWith("::ffff:")) {
         ip = ip.substring(7);
     }
+    
+    // Clean IP - remove multiple IPs
+    if (ip && ip.includes(',')) {
+        ip = ip.split(',')[0].trim();
+    }
 
-    const time = new Date().toLocaleString();
+    const time = getISTTime();
+    const locationText = formatLocation(location);
+    const networkInfo = location.isp !== "Unknown" ? location.isp : "Unknown";
 
     return createEmailLayout({
-        title: isNewLocation
-            ? "New Login Detected"
-            : "Login Successful",
-
+        title: isNewLocation ? "New Login Detected" : "Login Successful",
         subtitle: "Recent account activity",
-
         headerColor: "#059669",
 
         body: `
@@ -353,9 +360,8 @@ async function getLoginNotificationEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Time
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
-              ${time}
+              ${time} IST
             </td>
           </tr>
 
@@ -363,7 +369,6 @@ async function getLoginNotificationEmail(
             <td style="padding:8px 0;color:#6b7280;">
               IP Address
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${ip}
             </td>
@@ -373,25 +378,24 @@ async function getLoginNotificationEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Location
             </td>
-
-             <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">
-  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
-  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
-  ${location.country !== "Unknown" ? location.country : "Unknown"}
-  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
-</td><tr>
-  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
-  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
-</tr>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${locationText}
+            </td>
           </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              Network/ISP
+            </td>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${networkInfo}
+            </td>
           </tr>
 
           <tr>
             <td style="padding:8px 0;color:#6b7280;">
               Device
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${device.device}
             </td>
@@ -399,9 +403,17 @@ async function getLoginNotificationEmail(
 
           <tr>
             <td style="padding:8px 0;color:#6b7280;">
+              Operating System
+            </td>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${device.os}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
               Browser
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${device.browser}
             </td>
@@ -409,6 +421,23 @@ async function getLoginNotificationEmail(
 
         </table>
 
+      </div>
+
+      <div style="
+        background:#f0fdf4;
+        border-radius:10px;
+        padding:16px;
+        margin-top:20px;
+      ">
+        <p style="
+          margin:0;
+          color:#065f46;
+          font-size:13px;
+          line-height:22px;
+        ">
+          If this was you, no further action is needed.
+          If you didn't perform this login, please secure your account immediately.
+        </p>
       </div>
     `,
     });
@@ -418,19 +447,11 @@ async function getLoginNotificationEmail(
 // WRONG PASSWORD ALERT
 // ======================================================
 
-async function getWrongPasswordEmail(
-    email,
-    attemptCount,
-    req
-) {
+async function getWrongPasswordEmail(email, attemptCount, req) {
     const location = await getLocationFromIP(req);
-
-    const device = getDeviceInfo(
-        req.headers["user-agent"]
-    );
-
-    let ip =
-        req.headers["x-forwarded-for"] ||
+    const device = getDeviceInfo(req.headers["user-agent"]);
+    
+    let ip = req.headers["x-forwarded-for"] ||
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.ip;
@@ -438,8 +459,14 @@ async function getWrongPasswordEmail(
     if (ip && ip.startsWith("::ffff:")) {
         ip = ip.substring(7);
     }
+    
+    if (ip && ip.includes(',')) {
+        ip = ip.split(',')[0].trim();
+    }
 
-    const time = new Date().toLocaleString();
+    const time = getISTTime();
+    const locationText = formatLocation(location);
+    const remainingAttempts = 5 - attemptCount;
 
     return createEmailLayout({
         title: "Security Notice",
@@ -456,8 +483,8 @@ async function getWrongPasswordEmail(
         font-size:15px;
         line-height:24px;
       ">
-        We detected an unsuccessful sign-in attempt
-        to your account.
+        We detected an unsuccessful sign-in attempt to your account.
+        ${remainingAttempts > 0 ? `You have ${remainingAttempts} attempt(s) remaining before your account is locked.` : ''}
       </p>
 
       <div style="
@@ -472,9 +499,8 @@ async function getWrongPasswordEmail(
 
           <tr>
             <td style="padding:8px 0;color:#6b7280;">
-              Attempts
+              Attempt Number
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${attemptCount}
             </td>
@@ -484,9 +510,17 @@ async function getWrongPasswordEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Time
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
-              ${time}
+              ${time} IST
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
+              IP Address
+            </td>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${ip}
             </td>
           </tr>
 
@@ -494,25 +528,15 @@ async function getWrongPasswordEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Location
             </td>
-
-             <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">
-  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
-  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
-  ${location.country !== "Unknown" ? location.country : "Unknown"}
-  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
-</td><tr>
-  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
-  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
-</tr>
-          </tr>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${locationText}
+            </td>
           </tr>
 
           <tr>
             <td style="padding:8px 0;color:#6b7280;">
               Device
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${device.device}
             </td>
@@ -534,7 +558,7 @@ async function getWrongPasswordEmail(
           font-size:13px;
           line-height:22px;
         ">
-          If this was not you, consider updating your password.
+          If this was not you, consider updating your password immediately.
         </p>
       </div>
     `,
@@ -545,10 +569,9 @@ async function getWrongPasswordEmail(
 // PASSWORD CHANGED
 // ======================================================
 
-async function getPasswordChangedConfirmationEmail(
-    email,
-    name
-) {
+async function getPasswordChangedConfirmationEmail(email, name) {
+    const time = getISTTime();
+    
     return createEmailLayout({
         title: "Password Updated",
         subtitle: "Your password was changed successfully",
@@ -564,8 +587,7 @@ async function getPasswordChangedConfirmationEmail(
         font-size:15px;
         line-height:24px;
       ">
-        Your account password was updated successfully
-        on ${new Date().toLocaleString()}.
+        Your account password was updated successfully on ${time} IST.
       </p>
 
       <div style="
@@ -669,15 +691,10 @@ async function getWelcomeEmail(name, email) {
 // EXCESSIVE ATTEMPTS ALERT
 // ======================================================
 
-async function getExcessiveAttemptsAlertEmail(
-    email,
-    attemptCount,
-    req
-) {
+async function getExcessiveAttemptsAlertEmail(email, attemptCount, req) {
     const location = await getLocationFromIP(req);
-
-    let ip =
-        req.headers["x-forwarded-for"] ||
+    
+    let ip = req.headers["x-forwarded-for"] ||
         req.connection.remoteAddress ||
         req.socket.remoteAddress ||
         req.ip;
@@ -685,6 +702,13 @@ async function getExcessiveAttemptsAlertEmail(
     if (ip && ip.startsWith("::ffff:")) {
         ip = ip.substring(7);
     }
+    
+    if (ip && ip.includes(',')) {
+        ip = ip.split(',')[0].trim();
+    }
+
+    const time = getISTTime();
+    const locationText = formatLocation(location);
 
     return createEmailLayout({
         title: "Account Protection Alert",
@@ -719,7 +743,6 @@ async function getExcessiveAttemptsAlertEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Failed Attempts
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${attemptCount}
             </td>
@@ -727,9 +750,17 @@ async function getExcessiveAttemptsAlertEmail(
 
           <tr>
             <td style="padding:8px 0;color:#6b7280;">
+              Time
+            </td>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${time} IST
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:8px 0;color:#6b7280;">
               IP Address
             </td>
-
             <td style="padding:8px 0;color:#111827;font-weight:600;">
               ${ip}
             </td>
@@ -739,21 +770,30 @@ async function getExcessiveAttemptsAlertEmail(
             <td style="padding:8px 0;color:#6b7280;">
               Location
             </td>
-
-            <td style="padding:8px 0;color:#6b7280;">Location:</td>
-<td style="padding:8px 0;color:#1f2937;font-weight:500;">
-  ${location.city !== "Unknown" ? `${location.city}, ` : ""}
-  ${location.region !== "Unknown" ? `${location.region}, ` : ""}
-  ${location.country !== "Unknown" ? location.country : "Unknown"}
-  ${location.city === "Unknown" && location.region === "Unknown" && location.country === "Unknown" ? "Unable to determine" : ""}
-</td><tr>
-  <td style="padding:8px 0;color:#6b7280;">ISP/Network:</td>
-  <td style="padding:8px 0;color:#1f2937;font-weight:500;">${location.isp || 'Unknown'}</td>
-</tr>
+            <td style="padding:8px 0;color:#111827;font-weight:600;">
+              ${locationText}
+            </td>
           </tr>
 
         </table>
 
+      </div>
+
+      <div style="
+        background:#fef2f2;
+        border-radius:10px;
+        padding:16px;
+        margin-top:20px;
+      ">
+        <p style="
+          margin:0;
+          color:#991b1b;
+          font-size:13px;
+          line-height:22px;
+        ">
+          Your account is temporarily locked. Please try again after 15 minutes.
+          If you're having trouble accessing your account, use the "Forgot Password" option.
+        </p>
       </div>
     `,
     });
@@ -768,4 +808,3 @@ module.exports = {
     getPasswordChangedConfirmationEmail,
     getExcessiveAttemptsAlertEmail,
 };
-const time = getISTTime();
