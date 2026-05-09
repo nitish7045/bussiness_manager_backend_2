@@ -1,6 +1,9 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const {
+  connectWhatsApp,
+} = require("./services/whatsappService");
 
 
 const connectDB = require("./config/db");
@@ -152,5 +155,6 @@ app.listen(PORT, () => {
   console.log(`🧾 Billing API: /api/billing/`);
   console.log(`💓 Keep Alive Route: /keep-alive`);
   console.log(`✅ All routes registered successfully`);
+  connectWhatsApp();
 
 });
