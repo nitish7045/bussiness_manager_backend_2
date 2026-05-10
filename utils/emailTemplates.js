@@ -38,7 +38,7 @@ const getCommonFooter = () => {
       line-height:20px;
       margin:0;
     ">
-      <strong>Business Manager</strong><br>
+      <strong>Business Manager (Nitish Software)</strong><br>
       Mumbai, Maharashtra, India
     </p>
 
@@ -56,7 +56,7 @@ const getCommonFooter = () => {
       font-size:10px;
       margin-top:12px;
     ">
-      © ${currentYear} Business Manager
+      © ${currentYear} Business Manager (Nitish Software)
     </p>
   </div>
   `;
@@ -631,7 +631,7 @@ async function getWelcomeEmail(name, email) {
         font-size:15px;
         line-height:24px;
       ">
-        Welcome to Business Manager.
+        Welcome to Business Manager (Nitish Software).
         Your account setup is complete and ready to use.
       </p>
 

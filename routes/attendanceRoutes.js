@@ -1,7 +1,10 @@
+//routes/attendanceRoutes.js
 const express = require("express");
 const router = express.Router();
 const Attendance = require("../models/Attendance");
+const User = require("../models/User"); // ← Add this import
 const auth = require("../middleware/authMiddleware");
+const { sendWhatsAppMessage } = require("../services/whatsappService"); // ← Add this import
 
 // ➕ Add attendance
 router.post("/add", auth, async (req, res) => {
@@ -261,6 +264,67 @@ router.get("/stats", auth, async (req, res) => {
   }
 });
 
+// ======================================================
+// 📱 SEND ATTENDANCE REMINDER VIA WHATSAPP (NEW)
+// ======================================================
+router.post("/send-reminder", auth, async (req, res) => {
+  try {
+    const { reminderMessage, unmarkedCount, reminderTime } = req.body;
+    
+    // Get user details from the authenticated user
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        msg: "User not found"
+      });
+    }
+    
+    // Get WhatsApp number from company settings
+    const whatsappNumber = user.companyDetails?.whatsappNumber;
+    
+    if (!whatsappNumber) {
+      console.log("No WhatsApp number configured for this user");
+      return res.status(200).json({
+        success: false,
+        msg: "WhatsApp number not configured. Please add in Company Settings."
+      });
+    }
+    
+    // Format the message with better structure
+    const formattedMessage = `
+*🏢 Business Manager (Nitish Software)*
+━━━━━━━━━━━━━━━━━━━━━━━
+
+${reminderMessage}
+
+━━━━━━━━━━━━━━━━━━━━━━━
+*📱 Need help?*
+Contact your administrator
+━━━━━━━━━━━━━━━━━━━━━━━`;
+    
+    // Send WhatsApp message
+    await sendWhatsAppMessage(whatsappNumber, formattedMessage);
+    
+    console.log(`✅ Attendance reminder sent at ${reminderTime} to ${whatsappNumber}`);
+    
+    res.status(200).json({
+      success: true,
+      msg: "Reminder sent successfully",
+      reminderTime: reminderTime,
+      unmarkedCount: unmarkedCount
+    });
+    
+  } catch (error) {
+    console.error("Error sending attendance reminder:", error);
+    res.status(500).json({
+      success: false,
+      msg: "Failed to send reminder",
+      error: error.message
+    });
+  }
+});
+
 // 🗑️ Delete attendance record
 router.delete("/:id", auth, async (req, res) => {
   try {
@@ -329,10 +393,7 @@ router.get("/worker/:workerId", auth, async (req, res) => {
   }
 });
 
-// backend/routes/attendanceRoutes.js
-// Add this route to your existing attendance routes
-
-// Delete a specific attendance record
+// 🗑️ Delete attendance by workerId and date
 router.delete("/:workerId/:date", auth, async (req, res) => {
   try {
     const { workerId, date } = req.params;
@@ -354,22 +415,4 @@ router.delete("/:workerId/:date", auth, async (req, res) => {
   }
 });
 
-// Alternative: Delete by ID
-router.delete("/:id", auth, async (req, res) => {
-  try {
-    const attendance = await Attendance.findOneAndDelete({
-      _id: req.params.id,
-      companyId: req.user.companyId
-    });
-    
-    if (!attendance) {
-      return res.status(404).json({ msg: "Attendance record not found" });
-    }
-    
-    res.json({ msg: "Attendance record deleted successfully" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ msg: "Error deleting attendance record" });
-  }
-});
 module.exports = router;
