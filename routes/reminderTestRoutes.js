@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
-
+const auth = require("../middleware/authMiddleware");
 const {
   checkAttendanceAndSendReminder,
 } = require("../services/attendanceReminderService");
 
-router.get("/test-first", async (req, res) => {
+router.get("/test-first", auth, async (req, res) => {
   try {
     await checkAttendanceAndSendReminder("first");
 
@@ -23,7 +23,7 @@ router.get("/test-first", async (req, res) => {
   }
 });
 
-router.get("/test-second", async (req, res) => {
+router.get("/test-second",auth, async (req, res) => {
   try {
     await checkAttendanceAndSendReminder("second");
 
