@@ -45,7 +45,16 @@ app.use("/api/uploads", require("./routes/uploadRoutes"));
 // app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/whatsapp", require("./routes/whatsappRoutes"));  // ← ADD THIS
 app.use("/api/broadcast", require("./routes/broadcastRoutes"));
-app.use("/api/reminder", require("./routes/reminderTestRoutes"));
+try {
+  const reminderRoutes = require("./routes/reminderTestRoutes");
+
+  app.use("/api/reminder", reminderRoutes);
+
+  console.log("✅ Reminder routes loaded");
+} catch (error) {
+  console.error("❌ Reminder route error:");
+  console.error(error);
+}
 
 // ==================== BILLING MODULE ROUTES ====================
 

@@ -1,17 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const auth = require("../middleware/authMiddleware");
+
 const {
   checkAttendanceAndSendReminder,
 } = require("../services/attendanceReminderService");
 
-router.get("/test-first", auth, async (req, res) => {
+router.get("/test-first", async (req, res) => {
   try {
     await checkAttendanceAndSendReminder("first");
 
     res.json({
       success: true,
-      message: "4 PM reminder test triggered",
+      message: "Reminder test working",
     });
   } catch (error) {
     console.error(error);
@@ -23,13 +23,13 @@ router.get("/test-first", auth, async (req, res) => {
   }
 });
 
-router.get("/test-second",auth, async (req, res) => {
+router.get("/test-second", async (req, res) => {
   try {
     await checkAttendanceAndSendReminder("second");
 
     res.json({
       success: true,
-      message: "9:30 PM reminder test triggered",
+      message: "Second reminder working",
     });
   } catch (error) {
     console.error(error);
