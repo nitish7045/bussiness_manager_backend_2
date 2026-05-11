@@ -7,6 +7,7 @@ const {
 // Add this with your other route imports
 const whatsappRoutes = require("./routes/whatsappRoutes");
 // const whatsappRoutes = require("./routes/whatsappRoutes");
+require("./services/attendanceReminderService");
 
 const connectDB = require("./config/db");
 
@@ -44,6 +45,7 @@ app.use("/api/uploads", require("./routes/uploadRoutes"));
 // app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/whatsapp", require("./routes/whatsappRoutes"));  // ← ADD THIS
 app.use("/api/broadcast", require("./routes/broadcastRoutes"));
+app.use("/api/reminder", require("./routes/reminderTestRoutes"));
 
 // ==================== BILLING MODULE ROUTES ====================
 
